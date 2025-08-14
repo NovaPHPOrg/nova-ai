@@ -202,11 +202,11 @@ class AiManager
      * 未提供流式回调时，按普通非流式方式返回完整文本。
      *
      * @param string $system
-     * @param string $user
+     * @param string|array $user
      * @param array{onHeader?:callable,onChunk?:callable,onComplete?:callable}|array $streamOptions
      * @return string|null
      */
-    public function request(string $system, string $user, array $streamOptions = []): ?string
+    public function request(string $system, string|array $user, array $streamOptions = []): ?string
     {
         $provider = $this->getCurrentProvider();
     

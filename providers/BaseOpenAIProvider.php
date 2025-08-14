@@ -62,7 +62,7 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
      * 发送对话请求
      * 如果 $options 包含流式回调，则使用 HttpClient::stream 推送分片并返回 null
      */
-    public function request(string $system, string $user, array $options = []): ?string
+    public function request(string $system, string|array $user, array $options = []): ?string
     {
         $apiBase = rtrim($this->getApiUri() ?: $this->getDefaultApiUri(), '/');
         $url     = $apiBase . '/v1/chat/completions';
@@ -74,10 +74,22 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
                 'content' => $system,
             ];
         }
-        $messages[] = [
-            'role'    => 'user',
-            'content' => $user,
-        ];
+
+        if (is_array($user)){
+            foreach ($user as $item) {
+                $messages[] = [
+                    'role'    => 'user',
+                    'content' => $item,
+                ];
+            }
+        }else{
+            $messages[] = [
+                'role'    => 'user',
+                'content' => $user,
+            ];
+        }
+
+
 
         $payload = [
             'model'       => $this->getModel() ?: $this->getDefaultModel(),

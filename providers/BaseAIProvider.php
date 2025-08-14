@@ -45,11 +45,11 @@ abstract class BaseAIProvider
      * 否则返回完整文本。
      *
      * @param string $system
-     * @param string $user
+     * @param string|array $user
      * @param array{onChunk?:callable,onComplete?:callable} $options
      * @return string|null
      */
-    abstract public function request(string $system, string $user, array $options = []): ?string;
+    abstract public function request(string $system, string|array $user, array $options = []): ?string;
 
     /** 子类给出缺省 API Base URL（当设置仓库无值时使用） */
     abstract protected function getDefaultApiUri(): string;
