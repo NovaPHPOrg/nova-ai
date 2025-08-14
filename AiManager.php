@@ -196,12 +196,23 @@ class AiManager
 
     /**
      * 发送请求到当前提供者
+     *
+     * 如果提供了 $streamOptions（包含 onHeader/onChunk/onComplete 等回调），
+     * 将以流式方式调用并通过回调返回数据，此时函数返回 null；
+     * 未提供流式回调时，按普通非流式方式返回完整文本。
+     *
+     * @param string $system
+     * @param string $user
+     * @param array{onHeader?:callable,onChunk?:callable,onComplete?:callable}|array $streamOptions
+     * @return string|null
      */
-    public function request(string $system, string $user): ?string
+    public function request(string $system, string $user, array $streamOptions = []): ?string
     {
         $provider = $this->getCurrentProvider();
-        return $provider?->request($system, $user);
+    
+        return $provider?->request($system, $user, $streamOptions);
     }
+
 
     /**
      * 工厂：根据显示名创建 Provider 实例，并注入配置

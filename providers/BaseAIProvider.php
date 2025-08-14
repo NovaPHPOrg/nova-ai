@@ -38,8 +38,18 @@ abstract class BaseAIProvider
     /** 返回可用模型列表 */
     abstract public function getAvailableModels(): array;
 
-    /** 实际向 AI 服务发起请求并返回文本（子类实现） */
-    abstract public function request(string $system, string $user): ?string;
+
+    /**
+     * 实际向 AI 服务发起请求
+     * 若 $options 中包含 onChunk/onComplete/onHeader 回调，则以流式方式执行并返回 null；
+     * 否则返回完整文本。
+     *
+     * @param string $system
+     * @param string $user
+     * @param array{onChunk?:callable,onComplete?:callable} $options
+     * @return string|null
+     */
+    abstract public function request(string $system, string $user, array $options = []): ?string;
 
     /** 子类给出缺省 API Base URL（当设置仓库无值时使用） */
     abstract protected function getDefaultApiUri(): string;

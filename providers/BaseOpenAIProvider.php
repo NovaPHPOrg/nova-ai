@@ -60,8 +60,9 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
 
     /**
      * 发送对话请求
+     * 如果 $options 包含流式回调，则使用 HttpClient::stream 推送分片并返回 null
      */
-    public function request(string $system, string $user): ?string
+    public function request(string $system, string $user, array $options = []): ?string
     {
         $apiBase = rtrim($this->getApiUri() ?: $this->getDefaultApiUri(), '/');
         $url     = $apiBase . '/v1/chat/completions';
@@ -84,11 +85,41 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
             'temperature' => 0.7,
         ];
 
-        try {
+        $proxy = $this->getProxy();
+        if ($proxy !== '') {
+            $this->http->proxy($proxy);
+        }
+
+
+        // 流式：存在任一回调则流式
+        $hasStreamCallbacks = isset($options['onChunk']) || isset($options['onComplete']);
+        if ($hasStreamCallbacks) {
+            $payload['stream'] = true;
+
+            $onChunk    = $options['onChunk']    ?? null;
+            $onComplete = $options['onComplete'] ?? null;
+
             $proxy = $this->getProxy();
             if ($proxy !== '') {
                 $this->http->proxy($proxy);
             }
+
+            $this->http
+                ->setHeader('Authorization', 'Bearer ' . $this->getApiKey())
+                ->setHeader('Accept', 'text/event-stream')
+                ->setHeader('Content-Type', 'application/json')
+                ->post($this->jsonEncode($payload), 'json')
+                ->stream(
+                    $url,
+                    [],
+                    $onChunk,
+                    $onComplete
+                );
+            return null;
+        }
+
+        try {
+
             $response = $this->http
                 ->setHeader('Authorization', 'Bearer ' . $this->getApiKey())
                 ->setHeader('Accept', 'application/json')
