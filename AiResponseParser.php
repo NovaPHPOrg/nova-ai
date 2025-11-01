@@ -9,6 +9,11 @@ namespace nova\plugin\ai;
 class AiResponseParser
 {
     /**
+     * SSE缓冲区，用于累积不完整的数据块
+     */
+    private string $sseBuffer = '';
+
+    /**
      * 解析SSE数据块，提取思考过程和可见文本
      */
     public function parseChunk(string $payload): array
@@ -116,20 +121,58 @@ class AiResponseParser
 
     public function processSSEBuffer(string $chunk, callable $send): void
     {
-        $buffers = preg_split("/\r?\n\r?\n/", trim($chunk));
+        // 累积数据到缓冲区
+        $this->sseBuffer .= $chunk;
+
+        // 找到最后一个完整的SSE事件结束位置（\r\n\r\n 或 \n\n）
+        $lastCompletePosCRLF = strrpos($this->sseBuffer, "\r\n\r\n");
+        $lastCompletePosNL = strrpos($this->sseBuffer, "\n\n");
+        
+        // 计算分隔符后的位置
+        $posCRLF = $lastCompletePosCRLF !== false ? $lastCompletePosCRLF + 4 : false;
+        $posNL = $lastCompletePosNL !== false ? $lastCompletePosNL + 2 : false;
+        
+        // 取更靠后的位置（如果有的话）
+        $lastCompletePos = false;
+        if ($posCRLF !== false && $posNL !== false) {
+            $lastCompletePos = max($posCRLF, $posNL);
+        } elseif ($posCRLF !== false) {
+            $lastCompletePos = $posCRLF;
+        } elseif ($posNL !== false) {
+            $lastCompletePos = $posNL;
+        }
+        
+        if ($lastCompletePos === false) {
+            // 没有完整的事件，等待更多数据
+            return;
+        }
+
+        // 提取所有完整的事件
+        $completeData = substr($this->sseBuffer, 0, $lastCompletePos);
+        // 保留剩余的不完整部分
+        $this->sseBuffer = substr($this->sseBuffer, $lastCompletePos);
+
+        // 处理完整的SSE事件
+        $buffers = preg_split("/\r?\n\r?\n/", $completeData, -1, PREG_SPLIT_NO_EMPTY);
         foreach ($buffers as $buffer) {
             $buffer = trim($buffer);
+            if ($buffer === '') {
+                continue;
+            }
+
             if (str_starts_with($buffer, 'data:')) {
                 $payload = trim(substr($buffer, 5));
                 if ($payload === '' || $payload === '[DONE]') {
+                    $this->sseBuffer = '';
                     return;
                 }
 
                 $parsed = $this->parseChunk($payload);
-                $content = str_replace(["\r\n", "\n", "\r"], "\\n", $parsed['content']);
-                $send($content, $parsed['type']);
+                if ($parsed['content'] !== '') {
+                    $content = str_replace(["\r\n", "\n", "\r"], "\\n", $parsed['content']);
+                    $send($content, $parsed['type']);
+                }
             }
         }
-
     }
 }
