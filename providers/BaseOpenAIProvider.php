@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace nova\plugin\ai\providers;
 
+use nova\framework\core\Logger;
 use nova\plugin\http\HttpException;
 use nova\plugin\http\HttpResponse;
 
@@ -53,7 +54,8 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
             }
 
             return $models;
-        } catch (\Throwable $e) {
+        } catch (\RuntimeException $e) {
+            Logger::error($e->getMessage(), $e->getTrace());
             return [];
         }
     }
