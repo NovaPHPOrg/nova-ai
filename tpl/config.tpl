@@ -99,7 +99,7 @@
         });
 
         // 通过 $.form.manage 接管 GET/POST
-        $.form.manage('/ai/config', "#form_ai", {
+        $.form.manage('/admin/ai/api/config', "#form_ai", {
             beforeSet: function (response) {
                 // 设置后可做额外处理
                 $.form.setSelectOptions("[name=provider]",response.data.providers)
@@ -116,7 +116,7 @@
                 }
                 lastProvider = currentProvider;
                 // 使用当前输入（provider/api_key/api_url/api_model_text优先）刷新模型
-                $.request.postForm('/ai/config/api', data, function (res) {
+                $.request.postForm('/admin/ai/api/config/api', data, function (res) {
                     if (res.code === 200) {
                         $('[name="api_url"]').val( res.data.api_url);
                     }
@@ -127,7 +127,7 @@
         $('#refreshModels').on('click', function () {
             const data = $.form.val("#form_ai") ;
             // 使用当前输入（provider/api_key/api_url/api_model_text优先）刷新模型
-            $.request.postForm('/ai/config/models', data, function (res) {
+            $.request.postForm('/admin/ai/api/config/models', data, function (res) {
                 if (res.code === 200) {
                     $.form.setSelectOptions('[name="api_model"]',res.data.availableModels);
                     $.toaster.info('模型列表已刷新');
@@ -139,7 +139,7 @@
         $('#openKey').on('click', function () {
             const data = $.form.val("#form_ai") ;
 
-            $.request.postForm('/ai/config/url',data, function (res) {
+            $.request.postForm('/admin/ai/api/config/url',data, function (res) {
                 if (res.code === 200 && res.data && res.data.createKeyUri) {
                     window.open(res.data.createKeyUri, '_blank');
                 } else {

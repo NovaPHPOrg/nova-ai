@@ -22,7 +22,7 @@ class AiSettings extends StaticRegister
     {
         EventManager::addListener('route.before', function ($event, &$uri) {
 
-            if (!str_starts_with($uri, '/ai/config')) {
+            if (!str_starts_with($uri, '/admin/ai')) {
                 return;
             }
             if ($redirect = self::needLogin()) {
@@ -32,7 +32,7 @@ class AiSettings extends StaticRegister
             $mgr = AiManager::instance();
 
             // 统一 /ai/config 为表单接口：GET 获取配置，POST 保存配置
-            if ($uri === '/ai/config') {
+            if ($uri === '/admin/ai/api/config') {
                 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     throw new AppExitException(self::handleGetData($mgr));
                 }
@@ -42,7 +42,7 @@ class AiSettings extends StaticRegister
                 throw new AppExitException(Response::asText('Method Not Allowed', [], 405));
             }
 
-            if ($uri === '/ai/config/models') {
+            if ($uri === '/admin/ai/api/config/models') {
 
 
                 $provider = $_POST["provider"] ?? '';
@@ -57,7 +57,7 @@ class AiSettings extends StaticRegister
                     ],
                 ]));
             }
-            if ($uri === '/ai/config/api') {
+            if ($uri === '/admin/ai/api/config/api') {
                 $provider = $_POST["provider"] ?? '';
                 $url = $mgr->getCurrentApiUrl($provider);
                 throw new AppExitException(Response::asJson([
@@ -68,7 +68,7 @@ class AiSettings extends StaticRegister
                 ]));
             }
             // 实时获取创建 API Key 的链接（受当前提供者影响）
-            if ($uri === '/ai/config/url') {
+            if ($uri === '/admin/ai/api/config/url') {
                 $provider = $_POST["provider"] ?? '';
                 $createKeyUri = $mgr->getCreateKeyUri($provider);
                 throw new AppExitException(Response::asJson([
