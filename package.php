@@ -12,5 +12,3 @@ return [
         'tpl', 'login', 'http'
     ],
 ];
-
-

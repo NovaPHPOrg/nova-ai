@@ -6,6 +6,7 @@ namespace nova\plugin\ai;
 
 use nova\framework\core\Context;
 use nova\plugin\ai\providers\BaseAIProvider;
+
 // 不再直接依赖具体 Provider 类；通过类名动态创建
 
 /**
@@ -55,7 +56,6 @@ class AiManager
         $config->set('ai.current_provider', $providerName);
         return true;
     }
-
 
     /**
      * 获取当前提供者实例
@@ -169,13 +169,13 @@ class AiManager
      *
      * @return array<string>
      */
-    public function getAvailableModels(?string $name = null,?string $key = null, ?string $proxy = null): array
+    public function getAvailableModels(?string $name = null, ?string $key = null, ?string $proxy = null): array
     {
         $provider = $this->getCurrentProvider($name);
         if (!$provider) {
             return [];
         }
-        if ($key!== null){
+        if ($key !== null) {
             $provider->setApiKey($key);
         }
         if ($proxy !== null) {
@@ -183,7 +183,6 @@ class AiManager
         }
         return $provider->getAvailableModels();
     }
-
 
     /**
      * 获取当前提供者的创建 Key 页面
@@ -201,18 +200,17 @@ class AiManager
      * 将以流式方式调用并通过回调返回数据，此时函数返回 null；
      * 未提供流式回调时，按普通非流式方式返回完整文本。
      *
-     * @param string $system
-     * @param string|array $user
-     * @param array{onHeader?:callable,onChunk?:callable,onComplete?:callable}|array $streamOptions
+     * @param  string                                                                 $system
+     * @param  string|array                                                           $user
+     * @param  array{onHeader?:callable,onChunk?:callable,onComplete?:callable}|array $streamOptions
      * @return string|null
      */
     public function request(string $system, string|array $user, array $streamOptions = []): ?string
     {
         $provider = $this->getCurrentProvider();
-    
+
         return $provider?->request($system, $user, $streamOptions);
     }
-
 
     /**
      * 工厂：根据显示名创建 Provider 实例，并注入配置
@@ -241,5 +239,3 @@ class AiManager
         return $mgr;
     }
 }
-
-

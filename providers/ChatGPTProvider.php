@@ -26,5 +26,3 @@ class ChatGPTProvider extends BaseOpenAIProvider
         return 'gpt-3.5-turbo';
     }
 }
-
-

@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace nova\plugin\ai;
 
-use nova\framework\core\Context;
 use nova\framework\core\StaticRegister;
 use nova\framework\event\EventManager;
 use nova\framework\exception\AppExitException;
 use nova\framework\http\Response;
 use nova\plugin\login\LoginManager;
-use nova\plugin\tpl\ViewResponse;
-use function nova\framework\dump;
 
 /**
  * AI 配置页面与接口
@@ -44,12 +41,11 @@ class AiSettings extends StaticRegister
 
             if ($uri === '/admin/ai/api/config/models') {
 
-
                 $provider = $_POST["provider"] ?? '';
                 $key = $_POST["api_key"] ?? '';
                 $proxy = $_POST["proxy"] ?? null;
 
-                $models = $mgr->getAvailableModels($provider,$key,$proxy);
+                $models = $mgr->getAvailableModels($provider, $key, $proxy);
                 throw new AppExitException(Response::asJson([
                     'code' => 200,
                     'data' => [
@@ -79,7 +75,6 @@ class AiSettings extends StaticRegister
                 ]));
             }
 
-
         });
     }
 
@@ -97,8 +92,6 @@ class AiSettings extends StaticRegister
 
     const string TPL = ROOT_PATH . DS . 'nova' . DS . 'plugin' . DS . 'ai' . DS . 'tpl' . DS.'config';
 
-
-
     private static function handleGetData(AiManager $mgr): Response
     {
         return Response::asJson([
@@ -111,7 +104,7 @@ class AiSettings extends StaticRegister
                 'api_url'        => $mgr->getCurrentApiUrl(),
                 'api_model'      => $mgr->getCurrentModel(),
                 'proxy'          => $mgr->getCurrentProxy(),
-                'availableModels'=> [],
+                'availableModels' => [],
             ],
         ]);
 
@@ -119,7 +112,6 @@ class AiSettings extends StaticRegister
 
     private static function handleSave(AiManager $mgr): Response
     {
-
 
         $provider = $_POST['provider'] ?? null;
         $apiKey   = $_POST['api_key'] ?? null;
@@ -131,16 +123,16 @@ class AiSettings extends StaticRegister
             $mgr->setCurrentProvider($provider);
         }
         if (is_string($apiKey)) {
-            $mgr->setCurrentApiKey($apiKey,$provider);
+            $mgr->setCurrentApiKey($apiKey, $provider);
         }
         if (is_string($apiUrl)) {
-            $mgr->setCurrentApiUrl($apiUrl,$provider);
+            $mgr->setCurrentApiUrl($apiUrl, $provider);
         }
         if (is_string($model)) {
-            $mgr->setCurrentModel($model,$provider);
+            $mgr->setCurrentModel($model, $provider);
         }
         if (is_string($proxy)) {
-            $mgr->setCurrentProxy($proxy,$provider);
+            $mgr->setCurrentProxy($proxy, $provider);
         }
 
         return Response::asJson([
@@ -149,5 +141,3 @@ class AiSettings extends StaticRegister
         ]);
     }
 }
-
-

@@ -1,10 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace nova\plugin\ai\providers;
 
 use nova\framework\core\Context;
 use nova\plugin\http\HttpClient;
-
 
 /**
  * AI 提供商的基础抽象类（PHP 版）
@@ -31,22 +32,20 @@ abstract class BaseAIProvider
     /** 提供商名称，用于拼装设置键名，如 API_KEY_{name} */
     abstract public function getName(): string;
 
-
     /** 引导用户去创建 API Key 的页面 */
     abstract public function getCreateKeyUri(): string;
 
     /** 返回可用模型列表 */
     abstract public function getAvailableModels(): array;
 
-
     /**
      * 实际向 AI 服务发起请求
      * 若 $options 中包含 onChunk/onComplete/onHeader 回调，则以流式方式执行并返回 null；
      * 否则返回完整文本。
      *
-     * @param string $system
-     * @param string|array $user
-     * @param array{onChunk?:callable,onComplete?:callable} $options
+     * @param  string                                        $system
+     * @param  string|array                                  $user
+     * @param  array{onChunk?:callable,onComplete?:callable} $options
      * @return string|null
      */
     abstract public function request(string $system, string|array $user, array $options = []): ?string;
@@ -103,7 +102,6 @@ abstract class BaseAIProvider
     {
         $this->apiKey = $apiKey;
     }
-
 
     /** 与 Kotlin 的扩展函数 String.removeThink 等价 */
     protected function removeThink(string $text): string

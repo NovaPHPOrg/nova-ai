@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace nova\plugin\ai;
 
 /**
@@ -32,7 +34,6 @@ class AiResponseParser
         if (!is_array($decoded)) {
             return $result;
         }
-
 
         // {
         //    "id": "gen-1755147565-0ZSd3QOT6JSpDk5OV1Tl",
@@ -87,7 +88,6 @@ class AiResponseParser
             return $this->parseOpenAIFormat($decoded, $result);
         }
 
-
         return $result;
     }
 
@@ -114,10 +114,8 @@ class AiResponseParser
             $result['type'] = 'thinking';
         }
 
-
         return $result;
     }
-
 
     public function processSSEBuffer(string $chunk, callable $send): void
     {
@@ -127,11 +125,11 @@ class AiResponseParser
         // 找到最后一个完整的SSE事件结束位置（\r\n\r\n 或 \n\n）
         $lastCompletePosCRLF = strrpos($this->sseBuffer, "\r\n\r\n");
         $lastCompletePosNL = strrpos($this->sseBuffer, "\n\n");
-        
+
         // 计算分隔符后的位置
         $posCRLF = $lastCompletePosCRLF !== false ? $lastCompletePosCRLF + 4 : false;
         $posNL = $lastCompletePosNL !== false ? $lastCompletePosNL + 2 : false;
-        
+
         // 取更靠后的位置（如果有的话）
         $lastCompletePos = false;
         if ($posCRLF !== false && $posNL !== false) {
@@ -141,7 +139,7 @@ class AiResponseParser
         } elseif ($posNL !== false) {
             $lastCompletePos = $posNL;
         }
-        
+
         if ($lastCompletePos === false) {
             // 没有完整的事件，等待更多数据
             return;

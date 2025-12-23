@@ -77,21 +77,19 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
             ];
         }
 
-        if (is_array($user)){
+        if (is_array($user)) {
             foreach ($user as $item) {
                 $messages[] = [
                     'role'    => 'user',
                     'content' => $item,
                 ];
             }
-        }else{
+        } else {
             $messages[] = [
                 'role'    => 'user',
                 'content' => $user,
             ];
         }
-
-
 
         $payload = [
             'model'       => $this->getModel() ?: $this->getDefaultModel(),
@@ -103,7 +101,6 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
         if ($proxy !== '') {
             $this->http->proxy($proxy);
         }
-
 
         // 流式：存在任一回调则流式
         $hasStreamCallbacks = isset($options['onChunk']) || isset($options['onComplete']);
@@ -158,5 +155,3 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
         }
     }
 }
-
-
