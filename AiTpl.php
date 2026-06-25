@@ -38,17 +38,17 @@ class AiTpl extends Instance implements AdminPageInterface
     public function menu(): array
     {
         return [
-            'title' => 'AI',
+            'title' => 'AI管理',
             'icon' => 'smart_toy',
             'sub' => [
                 [
-                    'title' => '配置',
+                    'title' => '接口配置',
                     'icon' => 'tune',
                     'url' => '/ai/config',
                     'pjax' => true,
                 ],
                 [
-                    'title' => '测试',
+                    'title' => '接口测试',
                     'icon' => 'science',
                     'url' => '/ai/test',
                     'pjax' => true,
