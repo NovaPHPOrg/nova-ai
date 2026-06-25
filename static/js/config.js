@@ -2,7 +2,6 @@ window.pageLoadFiles = [
     'Form',
     'Request',
     'Toaster',
-    'Loading',
     'SearchInput',
 ];
 
@@ -11,11 +10,20 @@ window.pageOnLoad = function () {
         return document.querySelector('#form_ai [name=api_model]');
     };
 
-    const setModelOptions = function (list) {
+    // 模型 id 既是 value 也是显示文本；并让自由输入也能作为最终值
+    const setupModelInput = function () {
         const el = modelEl();
-        if (el) {
-            el.options = list || [];
+        if (!el || el._aiBound) {
+            return;
         }
+        el._aiBound = true;
+        el.renderItem = function (row) {
+            return { key: String(row), value: String(row) };
+        };
+        // 未从下拉选择、直接手输的模型名也要能提交
+        el.addEventListener('input', function () {
+            el.value = el.text;
+        });
     };
 
     $.form.manage('/ai/api/config', '#form_ai', {
@@ -23,7 +31,12 @@ window.pageOnLoad = function () {
             $.form.setSelectOptions('[name=provider]', response.data.providers);
         },
         afterSet: function (response) {
-            setModelOptions(response.data.availableModels);
+            setupModelInput();
+            const el = modelEl();
+            const model = response.data.api_model || '';
+            if (el && model) {
+                el.setValue(model, model);
+            }
         },
     });
 
@@ -42,17 +55,17 @@ window.pageOnLoad = function () {
         });
     });
 
+    // 刷新：用当前表单凭据拉取全量模型并落库缓存（服务端 24h），不填充搜索框
     $('#refreshModels').on('click', function () {
-        const data = $.form.val('#form_ai');
-        $('#form_ai').showLoading('正在获取模型列表...');
-        $.request.postForm('/ai/api/config/models', data, function (res) {
-            $('#form_ai').closeLoading();
+        $('#container').showLoading('正在获取模型列表...');
+        $.request.postForm('/ai/api/config/models', $.form.val('#form_ai'), function (res) {
+            $('#container').closeLoading();
             if (res.code === 200) {
-                setModelOptions(res.data.availableModels);
-                $.toaster.info('模型列表已刷新');
+                const count = Array.isArray(res.data) ? res.data.length : 0;
+                $.toaster.info('模型列表已刷新，共 ' + count + ' 个');
             }
         }, function () {
-            $('#form_ai').closeLoading();
+            $('#container').closeLoading();
         });
     });
 

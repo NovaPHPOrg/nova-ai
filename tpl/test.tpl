@@ -12,6 +12,32 @@
         background: rgb(var(--mdui-color-surface-container-low));
     }
     #ai_output .ai-content { color: rgb(var(--mdui-color-on-surface)); }
+    #ai_output .ai-think { margin: 6px 0; }
+    #ai_output .ai-think > summary {
+        cursor: pointer;
+        font-size: .85rem;
+        color: rgb(var(--mdui-color-on-surface-variant));
+    }
+    #ai_output .ai-think-dots {
+        display: inline-flex;
+        gap: 3px;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+    #ai_output .ai-think-dots > i {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: ai-think-bounce 1s infinite ease-in-out;
+    }
+    #ai_output .ai-think-dots > i:nth-child(2) { animation-delay: .15s; }
+    #ai_output .ai-think-dots > i:nth-child(3) { animation-delay: .30s; }
+    #ai_output .ai-think-done .ai-think-dots { display: none; }
+    @keyframes ai-think-bounce {
+        0%, 80%, 100% { opacity: .25; transform: translateY(0); }
+        40% { opacity: 1; transform: translateY(-3px); }
+    }
     #ai_output .ai-thinking { color: rgb(var(--mdui-color-on-surface-variant)); font-style: italic; }
     #ai_output .ai-tool {
         display: block;
@@ -44,6 +70,7 @@
                     autosize
                     variant="outlined"
                     style="flex:1"
+                    value="依次演示你的全部文件操作能力（工作目录 /tmp），每步请说明用到的工具：1) 新建目录 demo 和 demo/sub；2) 在 demo/a.txt 写入「hello world」；3) 向 demo/a.txt 追加一行「second line」；4) 把 demo/a.txt 里的 hello 替换为「你好」；5) 读取 demo/a.txt；6) 查看 demo/a.txt 的文件信息；7) 复制 demo/a.txt 为 demo/b.txt；8) 把 demo/b.txt 重命名为 c.txt；9) 将 demo/c.txt 移动到 demo/sub/ 下；10) 列出 demo 目录；11) 以树形展示 demo 结构；12) 在 demo 下按文件名搜索包含 a 的条目；13) 用通配符 *.txt 查找 demo 下的文本文件；14) 同时读取 demo/a.txt 和 demo/sub/c.txt；15) 最后删除 demo/a.txt 和 demo/sub/c.txt 两个文件。"
             ></mdui-text-field>
         </div>
 

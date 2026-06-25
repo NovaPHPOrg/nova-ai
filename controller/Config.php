@@ -35,13 +35,22 @@ class Config extends BaseAPIController
 
         return Response::asJson([
             'code' => 200,
-            'data' => [
-                'availableModels' => $cfg->availableModelsFor(
-                    $this->request->post('provider', ''),
-                    $this->request->post('api_key', ''),
-                    $this->request->post('proxy'),
-                ),
-            ],
+            'data' => $cfg->fetchModels(
+                $this->request->post('provider', ''),
+                $this->request->post('api_key', ''),
+                $this->request->post('api_url', ''),
+                $this->request->post('proxy', ''),
+            ),
+        ]);
+    }
+
+    public function search(): Response
+    {
+        $cfg = AiConfig::getInstance();
+
+        return Response::asJson([
+            'code' => 200,
+            'data' => $cfg->searchModels(trim((string)$this->request->post('keyword', ''))),
         ]);
     }
 

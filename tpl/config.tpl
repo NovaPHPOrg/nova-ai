@@ -50,8 +50,18 @@
                 </div>
 
                 <div class="col-xs-12 col-md-6" style="display:flex; align-items:center; gap:.5rem;">
-                    <mdui-search-input name="api_model" label="模型（输入或选择）" placeholder="输入关键字过滤" style="flex:1"></mdui-search-input>
-                    <mdui-button-icon id="refreshModels" icon="refresh" title="刷新模型"></mdui-button-icon>
+                    <mdui-search-input
+                            name="api_model"
+                            label="模型（输入搜索）"
+                            placeholder="输入关键字搜索模型"
+                            clearable
+                            min-length="1"
+                            debounce="300"
+                            search-uri="/ai/api/config/search"
+                            search-method="post"
+                            style="flex:1"
+                    ></mdui-search-input>
+                    <mdui-button-icon id="refreshModels" icon="refresh" title="刷新模型列表"></mdui-button-icon>
                 </div>
 
 

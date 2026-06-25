@@ -23,6 +23,7 @@ class AiPluginManager extends StaticRegister
     {
         $this->getOrPost('/ai/api/config', $this->map('config', 'config'));
         $this->post('/ai/api/config/models', $this->map('config', 'models'));
+        $this->post('/ai/api/config/search', $this->map('config', 'search'));
         $this->post('/ai/api/config/api', $this->map('config', 'api'));
         $this->post('/ai/api/config/url', $this->map('config', 'url'));
         $this->get('/ai/api/test/run', $this->map('test', 'run'));
@@ -30,7 +31,6 @@ class AiPluginManager extends StaticRegister
 
     public static function registerInfo(): void
     {
-        AiConfig::migrateLegacy();
 
         Permission::getInstance()->registerPermissions('AI 配置', 'ai_manage', [
             'ANY /ai*',
@@ -38,6 +38,5 @@ class AiPluginManager extends StaticRegister
 
         self::getInstance()->bindPrefixDispatch('/ai');
         AdminPage::bind(AiTpl::getInstance());
-        AdminPage::bind(AiTestTpl::getInstance());
     }
 }

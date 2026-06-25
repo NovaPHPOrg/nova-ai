@@ -89,15 +89,21 @@ abstract class BaseAIProvider
     abstract protected function getDefaultModel(): string;
 
     /** 读取本提供商的某项全局配置，缺省为空串 */
-    private function setting(string $key): string
+    private function setting(string $key, string $value = null): string
     {
-        return AiConfig::getInstance()->providerSetting($this->getName(), $key);
+        if ($value === null) {
+            return AiConfig::getInstance()->providerSetting($this->getName(), $key);
+        } else {
+            AiConfig::getInstance()->setProviderSetting($this->getName(), $key, $value);
+            return '';
+        }
+
     }
 
     /** 读取 API Key：优先全局配置，否则回退本地属性 */
     public function getApiKey(): string
     {
-        return $this->setting('api_key') ?: $this->apiKey;
+        return $this->setting('api_key') ?: '';
     }
 
     /** 读取 API URI：优先全局配置，否则回退子类默认值 */
@@ -116,18 +122,6 @@ abstract class BaseAIProvider
     public function getProxy(): string
     {
         return $this->setting('proxy');
-    }
-
-    /** 运行时设置代理，传入空字符串可关闭代理 */
-    public function setProxy(string $proxy): void
-    {
-        $this->http->proxy($proxy);
-    }
-
-    /** 可选：允许在运行时注入备用 API Key（与 Kotlin var apiKey 等价） */
-    public function setApiKey(string $apiKey): void
-    {
-        $this->apiKey = $apiKey;
     }
 
     /** 与 Kotlin 的扩展函数 String.removeThink 等价 */
