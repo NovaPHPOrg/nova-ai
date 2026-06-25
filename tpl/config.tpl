@@ -50,14 +50,14 @@
                 </div>
 
                 <div class="col-xs-12 col-md-6" style="display:flex; align-items:center; gap:.5rem;">
-                    <mdui-select name="api_model" label="模型（下拉选择）" class="h-50"></mdui-select>
+                    <mdui-search-input name="api_model" label="模型（输入或选择）" placeholder="输入关键字过滤" style="flex:1"></mdui-search-input>
                     <mdui-button-icon id="refreshModels" icon="refresh" title="刷新模型"></mdui-button-icon>
                 </div>
 
 
                 
 
-                <div class="col-xs-12 action-buttons">
+                <div class="col-xs-12 action-buttons" style="display:flex; justify-content:flex-end;">
                     <mdui-button id="save_ai" icon="save" type="submit">
                         保存修改
                     </mdui-button>
@@ -67,90 +67,6 @@
     </div>
 </div>
 
-<script id="script">
-    window.pageLoadFiles = [
-        'Form',
-        'Request',
-        'Toaster',
-    ];
-
-
-    window.pageOnLoad = function (loading) {
-        const updateApiModelMenuHeight = function () {
-            const selectEl = document.querySelector('[name=api_model]');
-            if (!selectEl || !selectEl.shadowRoot) {
-                return;
-            }
-            const menuEl = selectEl.shadowRoot.querySelector('mdui-menu');
-            if (!menuEl) {
-                return;
-            }
-            // 获取当前位置信息，计算相对高度：可视区域 - api_model 的位置 - api_model 高度 - 20 像素
-            const rect = selectEl.getBoundingClientRect();
-            const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-            const reserved = 20;
-            const available = Math.max(160, viewportHeight - rect.top - rect.height - reserved);
-            menuEl.style.overflowY = 'auto';
-            menuEl.style.maxHeight = available + 'px';
-        };
-
-        $('#form_ai [name=api_model]').on('focus', function () {
-            setTimeout(updateApiModelMenuHeight,200)
-        });
-
-        // 通过 $.form.manage 接管 GET/POST
-        $.form.manage('/admin/ai/api/config', "#form_ai", {
-            beforeSet: function (response) {
-                // 设置后可做额外处理
-                $.form.setSelectOptions("[name=provider]",response.data.providers)
-            }
-        });
-
-            let lastProvider = null;
-            // 当切换提供者时：通知后端切换当前提供者，并刷新表单获取该提供者下的 api_url 等配置
-            $('#form_ai [name=provider]').on('change', function () {
-                const data = $.form.val("#form_ai");
-                const currentProvider = data.provider || $('#form_ai [name=provider]').val();
-                if (!currentProvider || currentProvider === lastProvider) {
-                    return;
-                }
-                lastProvider = currentProvider;
-                // 使用当前输入（provider/api_key/api_url/api_model_text优先）刷新模型
-                $.request.postForm('/admin/ai/api/config/api', data, function (res) {
-                    if (res.code === 200) {
-                        $('[name="api_url"]').val( res.data.api_url);
-                    }
-                });
-            });
-
-        // 刷新模型
-        $('#refreshModels').on('click', function () {
-            const data = $.form.val("#form_ai") ;
-            // 使用当前输入（provider/api_key/api_url/api_model_text优先）刷新模型
-            $.request.postForm('/admin/ai/api/config/models', data, function (res) {
-                if (res.code === 200) {
-                    $.form.setSelectOptions('[name="api_model"]',res.data.availableModels);
-                    $.toaster.info('模型列表已刷新');
-                }
-            });
-        });
-
-        // 创建 API Key（根据当前选择的提供者 / 模型动态获取链接）
-        $('#openKey').on('click', function () {
-            const data = $.form.val("#form_ai") ;
-
-            $.request.postForm('/admin/ai/api/config/url',data, function (res) {
-                if (res.code === 200 && res.data && res.data.createKeyUri) {
-                    window.open(res.data.createKeyUri, '_blank');
-                } else {
-                    $.toaster.error('未获取到创建 API Key 的链接');
-                }
-            });
-        });
-
-        window.pageOnUnLoad = function () {
-        };
-    };
-</script>
+<script id="script" src="/ai/static/js/config.js?v={$__v}"></script>
 
 

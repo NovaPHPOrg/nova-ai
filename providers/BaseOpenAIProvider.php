@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace nova\plugin\ai\providers;
 
 use nova\framework\core\Logger;
+use nova\plugin\ai\AiResponseParser;
 use nova\plugin\http\HttpException;
 use nova\plugin\http\HttpResponse;
 
@@ -23,14 +24,10 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
      */
     public function getAvailableModels(): array
     {
-        $apiBase = rtrim($this->getApiUri() ?: $this->getDefaultApiUri(), '/');
-        $url     = $apiBase . '/v1/models';
+        $url = rtrim($this->getApiUri(), '/') . '/v1/models';
+        $this->applyProxy();
 
         try {
-            $proxy = $this->getProxy();
-            if ($proxy !== '') {
-                $this->http->proxy($proxy);
-            }
             $response = $this->http
                 ->setHeader('Authorization', 'Bearer ' . $this->getApiKey())
                 ->setHeader('Accept', 'application/json')
@@ -41,15 +38,10 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
                 return [];
             }
 
-            $body = $response->getBody();
-            $json = $this->jsonDecode($body);
-
             $models = [];
-            if (is_array($json) && isset($json['data']) && is_array($json['data'])) {
-                foreach ($json['data'] as $item) {
-                    if (is_array($item) && isset($item['id']) && is_string($item['id'])) {
-                        $models[] = $item['id'];
-                    }
+            foreach ((array)($this->jsonDecode($response->getBody())['data'] ?? []) as $item) {
+                if (isset($item['id']) && is_string($item['id'])) {
+                    $models[] = $item['id'];
                 }
             }
 
@@ -61,97 +53,116 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
     }
 
     /**
-     * 发送对话请求
-     * 如果 $options 包含流式回调，则使用 HttpClient::stream 推送分片并返回 null
+     * 发送对话请求。
+     * 含 onChunk/onComplete 回调时走流式（SSE 实时解析 content/thinking，并累积 tool_calls）；
+     * 否则非流式，一次性解析 message。
+     *
+     * @param  array<int, array<string, mixed>>                                                       $messages
+     * @param  array<string, mixed>                                                                   $options
+     * @return array{content:string, tool_calls:array<int,array<string,mixed>>, finish_reason:string}
      */
-    public function request(string $system, string|array $user, array $options = []): ?string
+    public function chat(array $messages, array $options = []): array
     {
-        $apiBase = rtrim($this->getApiUri() ?: $this->getDefaultApiUri(), '/');
-        $url     = $apiBase . '/v1/chat/completions';
-
-        $messages = [];
-        if ($system !== '') {
-            $messages[] = [
-                'role'    => 'system',
-                'content' => $system,
-            ];
-        }
-
-        if (is_array($user)) {
-            foreach ($user as $item) {
-                $messages[] = [
-                    'role'    => 'user',
-                    'content' => $item,
-                ];
-            }
-        } else {
-            $messages[] = [
-                'role'    => 'user',
-                'content' => $user,
-            ];
-        }
+        $url = rtrim($this->getApiUri(), '/') . '/v1/chat/completions';
 
         $payload = [
-            'model'       => $this->getModel() ?: $this->getDefaultModel(),
+            'model'       => $this->getModel(),
             'messages'    => $messages,
-            'temperature' => 0.7,
+            'temperature' => $options['temperature'] ?? 0.7,
         ];
-
-        $proxy = $this->getProxy();
-        if ($proxy !== '') {
-            $this->http->proxy($proxy);
+        if (!empty($options['tools'])) {
+            $payload['tools'] = $options['tools'];
+            $payload['tool_choice'] = $options['tool_choice'] ?? 'auto';
         }
 
-        // 流式：存在任一回调则流式
-        $hasStreamCallbacks = isset($options['onChunk']) || isset($options['onComplete']);
-        if ($hasStreamCallbacks) {
-            $payload['stream'] = true;
+        $this->applyProxy();
+        $this->http
+            ->setHeader('Authorization', 'Bearer ' . $this->getApiKey())
+            ->setHeader('Content-Type', 'application/json');
 
-            $onChunk    = $options['onChunk']    ?? null;
-            $onComplete = $options['onComplete'] ?? null;
+        if (isset($options['onChunk']) || isset($options['onComplete'])) {
+            return $this->streamChat($url, $payload, $options);
+        }
 
-            $proxy = $this->getProxy();
-            if ($proxy !== '') {
-                $this->http->proxy($proxy);
+        return $this->blockingChat($url, $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>                                                                   $payload
+     * @param  array<string, mixed>                                                                   $options
+     * @return array{content:string, tool_calls:array<int,array<string,mixed>>, finish_reason:string}
+     */
+    private function streamChat(string $url, array $payload, array $options): array
+    {
+        $payload['stream'] = true;
+
+        $parser = new AiResponseParser();
+        $content = '';
+        $userOnChunk = $options['onChunk'] ?? null;
+
+        $send = function (string $text, string $type) use (&$content, $userOnChunk): void {
+            if ($type === 'content') {
+                $content .= $text;
             }
+            if (is_callable($userOnChunk)) {
+                $userOnChunk($text, $type);
+            }
+        };
 
-            $this->http
-                ->setHeader('Authorization', 'Bearer ' . $this->getApiKey())
-                ->setHeader('Accept', 'text/event-stream')
-                ->setHeader('Content-Type', 'application/json')
-                ->post($this->jsonEncode($payload), 'json')
-                ->stream(
-                    $url,
-                    [],
-                    $onChunk,
-                    $onComplete
-                );
-            return null;
-        }
+        $this->http
+            ->setHeader('Accept', 'text/event-stream')
+            ->post($this->jsonEncode($payload), 'json')
+            ->stream(
+                $url,
+                [],
+                static fn (string $chunk) => $parser->processSSEBuffer($chunk, $send),
+                $options['onComplete'] ?? null
+            );
+
+        return [
+            'content'       => $content,
+            'tool_calls'    => $parser->getToolCalls(),
+            'finish_reason' => $parser->getFinishReason(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>                                                                   $payload
+     * @return array{content:string, tool_calls:array<int,array<string,mixed>>, finish_reason:string}
+     */
+    private function blockingChat(string $url, array $payload): array
+    {
+        $empty = ['content' => '', 'tool_calls' => [], 'finish_reason' => ''];
 
         try {
-
             $response = $this->http
-                ->setHeader('Authorization', 'Bearer ' . $this->getApiKey())
                 ->setHeader('Accept', 'application/json')
                 ->post($this->jsonEncode($payload), 'json')
                 ->send($url);
 
             if (!$response instanceof HttpResponse) {
-                return null;
+                return $empty;
             }
 
-            $body = $response->getBody();
-            $json = $this->jsonDecode($body);
+            $choice = $this->jsonDecode($response->getBody())['choices'][0] ?? [];
+            $message = $choice['message'] ?? [];
 
-            if (!is_array($json) || !isset($json['choices'][0]['message']['content'])) {
-                return null;
-            }
-
-            $content = (string)$json['choices'][0]['message']['content'];
-            return $this->removeThink($content);
+            return [
+                'content'       => (string)($message['content'] ?? ''),
+                'tool_calls'    => is_array($message['tool_calls'] ?? null) ? $message['tool_calls'] : [],
+                'finish_reason' => (string)($choice['finish_reason'] ?? ''),
+            ];
         } catch (HttpException|\Throwable $e) {
-            return null;
+            return $empty;
+        }
+    }
+
+    /** 有配置代理时应用到 HTTP 客户端 */
+    private function applyProxy(): void
+    {
+        $proxy = $this->getProxy();
+        if ($proxy !== '') {
+            $this->http->proxy($proxy);
         }
     }
 }

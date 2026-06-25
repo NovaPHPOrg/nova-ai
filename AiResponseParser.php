@@ -5,171 +5,157 @@ declare(strict_types=1);
 namespace nova\plugin\ai;
 
 /**
- * AI响应解析器
- * 用于解析不同AI厂商的流式响应格式
+ * AI 流式响应解析器
+ *
+ * 解析 OpenAI / OpenRouter 的 Chat Completions SSE 流，同时处理：
+ * - 可见文本(content) 与 思考过程(reasoning)，实时通过回调输出；
+ * - function-calling 的 tool_calls 分片，按 index 累加，流结束后整体产出。
+ *
+ * 单次流复用一个实例；跨流请先 reset()。
  */
 class AiResponseParser
 {
-    /**
-     * SSE缓冲区，用于累积不完整的数据块
-     */
+    /** SSE 缓冲区，累积跨分片的不完整数据 */
     private string $sseBuffer = '';
 
+    /** @var array<int, array{id:string,type:string,function:array{name:string,arguments:string}}> */
+    private array $toolCalls = [];
+
+    private string $finishReason = '';
+
     /**
-     * 解析SSE数据块，提取思考过程和可见文本
+     * 解析单条 SSE payload，提取可见文本(content)或思考过程(reasoning)。
+     * 仅用于外部按需解析单片；流式累积请用 processSSEBuffer()。
+     *
+     * @return array{content: string, type: string}
      */
     public function parseChunk(string $payload): array
     {
-
-        $result = [
-            'content' => '',
-            'type' => 'unknown'
-        ];
+        $empty = ['content' => '', 'type' => 'unknown'];
 
         if ($payload === '' || $payload === '[DONE]') {
-            return $result;
+            return $empty;
         }
 
         $decoded = json_decode($payload, true);
-        if (!is_array($decoded)) {
-            return $result;
+        $delta = $decoded['choices'][0]['delta'] ?? null;
+        if (!is_array($delta)) {
+            return $empty;
         }
 
-        // {
-        //    "id": "gen-1755147565-0ZSd3QOT6JSpDk5OV1Tl",
-        //    "provider": "Chutes",
-        //    "model": "qwen/qwen3-14b:free",
-        //    "object": "chat.completion.chunk",
-        //    "created": 1755147565,
-        //    "choices": [
-        //        {
-        //            "index": 0,
-        //            "delta": {
-        //                "role": "assistant",
-        //                "content": "",
-        //                "reasoning": "\n",
-        //                "reasoning_details": [
-        //
-        //                ]
-        //            },
-        //            "finish_reason": null,
-        //            "native_finish_reason": null,
-        //            "logprobs": null
-        //        }
-        //    ]
-        //}
-
-        // {
-        //    "id": "gen-1755147565-0ZSd3QOT6JSpDk5OV1Tl",
-        //    "provider": "Chutes",
-        //    "model": "qwen/qwen3-14b:free",
-        //    "object": "chat.completion.chunk",
-        //    "created": 1755147565,
-        //    "choices": [
-        //        {
-        //            "index": 0,
-        //            "delta": {
-        //                "role": "assistant",
-        //                "content": "的",
-        //                "reasoning": null,
-        //                "reasoning_details": [
-        //
-        //                ]
-        //            },
-        //            "finish_reason": null,
-        //            "native_finish_reason": null,
-        //            "logprobs": null
-        //        }
-        //    ]
-        //}
-
-        // 1. OpenAI/OpenRouter Chat Completions格式
-        if (isset($decoded['choices'][0]['delta'])) {
-            return $this->parseOpenAIFormat($decoded, $result);
+        if (!empty($delta['content'])) {
+            return ['content' => $delta['content'], 'type' => 'content'];
+        }
+        if (!empty($delta['reasoning'])) {
+            return ['content' => $delta['reasoning'], 'type' => 'thinking'];
         }
 
-        return $result;
+        return $empty;
     }
 
     /**
-     * 解析OpenAI格式的响应
+     * 累积分片并处理其中所有完整的 SSE 事件（以空行分隔），不完整部分留待下次。
+     * 可见文本/思考过程通过 $send(string $content, string $type) 实时回调；
+     * tool_calls 累积在内部，流结束后用 getToolCalls() 取回。
      */
-    private function parseOpenAIFormat(array $decoded, array $result): array
-    {
-        $delta = $decoded['choices'][0]['delta'];
-        if (!is_array($delta)) {
-            return $result;
-        }
-
-        // 处理content字段
-        if (!empty($delta['content'])) {
-            $result['content'] = $delta['content'];
-            $result['type'] = 'content';
-            return $result;
-        }
-
-        // 处理reasoning字段（思考过程）
-        if (!empty($delta['reasoning'])) {
-            $result['content'] = $delta['reasoning'];
-            $result['type'] = 'thinking';
-        }
-
-        return $result;
-    }
-
     public function processSSEBuffer(string $chunk, callable $send): void
     {
-        // 累积数据到缓冲区
         $this->sseBuffer .= $chunk;
 
-        // 找到最后一个完整的SSE事件结束位置（\r\n\r\n 或 \n\n）
-        $lastCompletePosCRLF = strrpos($this->sseBuffer, "\r\n\r\n");
-        $lastCompletePosNL = strrpos($this->sseBuffer, "\n\n");
-
-        // 计算分隔符后的位置
-        $posCRLF = $lastCompletePosCRLF !== false ? $lastCompletePosCRLF + 4 : false;
-        $posNL = $lastCompletePosNL !== false ? $lastCompletePosNL + 2 : false;
-
-        // 取更靠后的位置（如果有的话）
-        $lastCompletePos = false;
-        if ($posCRLF !== false && $posNL !== false) {
-            $lastCompletePos = max($posCRLF, $posNL);
-        } elseif ($posCRLF !== false) {
-            $lastCompletePos = $posCRLF;
-        } elseif ($posNL !== false) {
-            $lastCompletePos = $posNL;
-        }
-
-        if ($lastCompletePos === false) {
-            // 没有完整的事件，等待更多数据
+        // 截取到最后一个事件分隔符（\n\n 或 \r\n\r\n）为止，剩余留在缓冲区
+        if (!preg_match('/.*(?:\r?\n\r?\n)/s', $this->sseBuffer, $m)) {
             return;
         }
+        $complete = $m[0];
+        $this->sseBuffer = substr($this->sseBuffer, strlen($complete));
 
-        // 提取所有完整的事件
-        $completeData = substr($this->sseBuffer, 0, $lastCompletePos);
-        // 保留剩余的不完整部分
-        $this->sseBuffer = substr($this->sseBuffer, $lastCompletePos);
-
-        // 处理完整的SSE事件
-        $buffers = preg_split("/\r?\n\r?\n/", $completeData, -1, PREG_SPLIT_NO_EMPTY);
-        foreach ($buffers as $buffer) {
-            $buffer = trim($buffer);
-            if ($buffer === '') {
+        foreach (preg_split("/\r?\n\r?\n/", $complete, -1, PREG_SPLIT_NO_EMPTY) as $event) {
+            $event = trim($event);
+            if (!str_starts_with($event, 'data:')) {
                 continue;
             }
 
-            if (str_starts_with($buffer, 'data:')) {
-                $payload = trim(substr($buffer, 5));
-                if ($payload === '' || $payload === '[DONE]') {
-                    $this->sseBuffer = '';
-                    return;
-                }
+            $payload = trim(substr($event, 5));
+            if ($payload === '' || $payload === '[DONE]') {
+                continue;
+            }
 
-                $parsed = $this->parseChunk($payload);
-                if ($parsed['content'] !== '') {
-                    $content = str_replace(["\r\n", "\n", "\r"], "\\n", $parsed['content']);
-                    $send($content, $parsed['type']);
-                }
+            $this->consume($payload, $send);
+        }
+    }
+
+    /** @return array<int, array{id:string,type:string,function:array{name:string,arguments:string}}> */
+    public function getToolCalls(): array
+    {
+        ksort($this->toolCalls);
+        return array_values($this->toolCalls);
+    }
+
+    public function getFinishReason(): string
+    {
+        return $this->finishReason;
+    }
+
+    public function reset(): void
+    {
+        $this->sseBuffer = '';
+        $this->toolCalls = [];
+        $this->finishReason = '';
+    }
+
+    /** 解析单条已去掉 "data:" 前缀的 JSON-RPC payload */
+    private function consume(string $payload, callable $send): void
+    {
+        $decoded = json_decode($payload, true);
+        if (!is_array($decoded)) {
+            return;
+        }
+
+        $choice = $decoded['choices'][0] ?? [];
+        $delta = $choice['delta'] ?? [];
+
+        if (!empty($delta['content'])) {
+            $send($delta['content'], 'content');
+        }
+        if (!empty($delta['reasoning'])) {
+            $send($delta['reasoning'], 'thinking');
+        }
+        if (!empty($delta['tool_calls']) && is_array($delta['tool_calls'])) {
+            $this->accumulateToolCalls($delta['tool_calls']);
+        }
+        if (!empty($choice['finish_reason'])) {
+            $this->finishReason = (string)$choice['finish_reason'];
+        }
+    }
+
+    /**
+     * 合并流式 tool_calls 分片：id/type/name 取首个出现值，arguments 按 index 拼接。
+     *
+     * @param array<int, array<string, mixed>> $deltas
+     */
+    private function accumulateToolCalls(array $deltas): void
+    {
+        foreach ($deltas as $i => $tc) {
+            $index = is_int($tc['index'] ?? null) ? $tc['index'] : $i;
+            $this->toolCalls[$index] ??= [
+                'id' => '',
+                'type' => 'function',
+                'function' => ['name' => '', 'arguments' => ''],
+            ];
+
+            if (!empty($tc['id'])) {
+                $this->toolCalls[$index]['id'] = (string)$tc['id'];
+            }
+            if (!empty($tc['type'])) {
+                $this->toolCalls[$index]['type'] = (string)$tc['type'];
+            }
+
+            $fn = $tc['function'] ?? [];
+            if (!empty($fn['name'])) {
+                $this->toolCalls[$index]['function']['name'] = (string)$fn['name'];
+            }
+            if (isset($fn['arguments']) && is_string($fn['arguments'])) {
+                $this->toolCalls[$index]['function']['arguments'] .= $fn['arguments'];
             }
         }
     }
