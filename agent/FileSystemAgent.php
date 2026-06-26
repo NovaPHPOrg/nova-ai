@@ -35,7 +35,7 @@ class FileSystemAgent extends Agent
     {
         return array_merge(
             FileSystemTools::getInstance($this->root)->tools(),
-            BashTools::getInstance($this->root)->tools()
+            BashTools::getInstance($this->root)->tools(),
         );
     }
 }

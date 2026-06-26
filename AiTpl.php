@@ -21,6 +21,7 @@ class AiTpl extends Instance implements AdminPageInterface
         $default = route($model, $controller, 'init');
         Route::getInstance()
             ->get('/ai/config', $default)
+            ->get('/ai/mcp', $default)
             ->get('/ai/test', $default);
     }
 
@@ -28,6 +29,8 @@ class AiTpl extends Instance implements AdminPageInterface
     {
         if ($request->getPath() === '/ai/config') {
             return $view->asTpl(ROOT_PATH . DS . 'nova/plugin/ai/tpl/config');
+        } elseif ($request->getPath() === '/ai/mcp') {
+            return $view->asTpl(ROOT_PATH . DS . 'nova/plugin/ai/tpl/mcp');
         } elseif ($request->getPath() === '/ai/test') {
             return $view->asTpl(ROOT_PATH . DS . 'nova/plugin/ai/tpl/test');
         }
@@ -45,6 +48,12 @@ class AiTpl extends Instance implements AdminPageInterface
                     'title' => '接口配置',
                     'icon' => 'tune',
                     'url' => '/ai/config',
+                    'pjax' => true,
+                ],
+                [
+                    'title' => 'MCP 工具',
+                    'icon' => 'extension',
+                    'url' => '/ai/mcp',
                     'pjax' => true,
                 ],
                 [

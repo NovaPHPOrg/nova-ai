@@ -26,6 +26,8 @@ class AiPluginManager extends StaticRegister
         $this->post('/ai/api/config/search', $this->map('config', 'search'));
         $this->post('/ai/api/config/api', $this->map('config', 'api'));
         $this->post('/ai/api/config/url', $this->map('config', 'url'));
+        $this->getOrPost('/ai/api/mcp', $this->map('mcp', 'config'));
+        $this->post('/ai/api/mcp/test', $this->map('mcp', 'test'));
         $this->get('/ai/api/test/run', $this->map('test', 'run'));
     }
 

@@ -6,6 +6,7 @@ namespace nova\plugin\ai\agent;
 
 use nova\framework\core\Instance;
 use nova\plugin\ai\AiConfig;
+use nova\plugin\ai\mcp\Mcp;
 use nova\plugin\ai\tool\ToolInterface;
 use nova\plugin\ai\tool\ToolRegistry;
 
@@ -125,6 +126,10 @@ abstract class Agent extends Instance
     private function buildRegistry(): ToolRegistry
     {
         $registry = new ToolRegistry();
+        // 先注册全局 MCP 工具，再注册本地工具：同名时本地为准
+        foreach (Mcp::getInstance()->tools() as $tool) {
+            $registry->register($tool);
+        }
         foreach ($this->tools() as $tool) {
             $registry->register($tool);
         }
