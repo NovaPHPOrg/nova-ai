@@ -25,7 +25,7 @@ class McpClient
 
     public function __construct(
         private readonly string $url,
-        private readonly int $timeout = 30,
+        private readonly int $timeout = 60,
     ) {
     }
 
@@ -66,11 +66,11 @@ class McpClient
         if ($this->connected) {
             return;
         }
-        $this->connected = true;
 
+        $reqId = ++$this->id;
         $resp = $this->post([
             'jsonrpc' => '2.0',
-            'id'      => ++$this->id,
+            'id'      => $reqId,
             'method'  => 'initialize',
             'params'  => [
                 'protocolVersion' => self::PROTOCOL_VERSION,
@@ -80,13 +80,16 @@ class McpClient
         ]);
 
         $this->sessionId = $this->header($resp['headers'], 'mcp-session-id');
-        $this->decode($resp, $this->id); // 校验握手结果，失败即抛
+        $this->decode($resp, $reqId); // 校验握手结果，失败即抛
 
         // initialized 是通知，无 id、无响应体
         $this->post([
             'jsonrpc' => '2.0',
             'method'  => 'notifications/initialized',
         ]);
+
+        // 只有完整握手后才算连上：失败时 ensureConnected 会重新走一遍
+        $this->connected = true;
     }
 
     /**
@@ -94,6 +97,26 @@ class McpClient
      * @return array<string, mixed>
      */
     private function rpc(string $method, array $params = []): array
+    {
+        try {
+            return $this->doRpc($method, $params);
+        } catch (RuntimeException $e) {
+            // session 过期 / server 重启 / 首次调用把会话搞挂：丢弃旧连接，重握手再试一次
+            if (!$this->isSessionLost($e)) {
+                throw $e;
+            }
+            $this->connected = false;
+            $this->sessionId = '';
+
+            return $this->doRpc($method, $params);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed> $params
+     * @return array<string, mixed>
+     */
+    private function doRpc(string $method, array $params = []): array
     {
         $this->ensureConnected();
 
@@ -106,6 +129,18 @@ class McpClient
         ]);
 
         return $this->decode($resp, $reqId);
+    }
+
+    /**
+     * 判断异常是否属于「会话丢失/连接抖动」——这类错误重握手后大概率能恢复。
+     */
+    private function isSessionLost(RuntimeException $e): bool
+    {
+        $msg = $e->getMessage();
+
+        return str_contains($msg, 'HTTP 404')
+            || stripos($msg, 'session') !== false
+            || str_contains($msg, 'invalid response');
     }
 
     /**
