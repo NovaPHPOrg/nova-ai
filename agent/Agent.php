@@ -47,7 +47,7 @@ abstract class Agent extends Instance
     /** 工具调用轮数上限，防止循环失控 */
     protected function maxIterations(): int
     {
-        return 8;
+        return 50;
     }
 
     /**

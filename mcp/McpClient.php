@@ -53,6 +53,12 @@ class McpClient
             'arguments' => empty($arguments) ? new \stdClass() : $arguments,
         ]);
 
+        // HTTP 200 但无 result：server 多半是慢操作超时空收尾（见 decode 的空响应分支）。
+        // 必须明确报错，否则模型收到空字符串会误以为调用成功，陷入空转。
+        if ($result === []) {
+            return "Error: tool '{$name}' returned no result (server may have timed out)";
+        }
+
         $text = $this->flattenContent($result['content'] ?? []);
         if (!empty($result['isError'])) {
             return 'Error: ' . $text;
@@ -101,7 +107,9 @@ class McpClient
         try {
             return $this->doRpc($method, $params);
         } catch (RuntimeException $e) {
-            // session 过期 / server 重启 / 首次调用把会话搞挂：丢弃旧连接，重握手再试一次
+            // 仅当 server 端 session 确已失效（过期/重启）时才重握手重试。
+            // 注意：MCP server 是有状态的，一个 session = 一个浏览器上下文，
+            // 不能因为一次响应异常就重置 session，否则会丢掉已打开的页面/登录态。
             if (!$this->isSessionLost($e)) {
                 throw $e;
             }
@@ -132,15 +140,15 @@ class McpClient
     }
 
     /**
-     * 判断异常是否属于「会话丢失/连接抖动」——这类错误重握手后大概率能恢复。
+     * 判断异常是否属于「server 端 session 已失效」——只有这种情况重握手才有意义。
+     * 空响应、超时等不算：那时 session 多半还活着，重置只会白白丢掉浏览器状态。
      */
     private function isSessionLost(RuntimeException $e): bool
     {
         $msg = $e->getMessage();
 
         return str_contains($msg, 'HTTP 404')
-            || stripos($msg, 'session') !== false
-            || str_contains($msg, 'invalid response');
+            || stripos($msg, 'session') !== false;
     }
 
     /**
@@ -186,6 +194,10 @@ class McpClient
         $message = str_contains($contentType, 'text/event-stream')
             ? $this->parseSse($resp['body'], $reqId)
             : json_decode($resp['body'], true);
+
+        if (empty($message)) {
+            return [];
+        }
 
         if (!is_array($message)) {
             throw new RuntimeException('MCP invalid response: ' . trim($resp['body']));
