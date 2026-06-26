@@ -34,6 +34,7 @@ class FileSystemAgent extends Agent
     protected function tools(): array
     {
         return array_merge(
+            parent::tools(),
             FileSystemTools::getInstance($this->root)->tools(),
             BashTools::getInstance($this->root)->tools(),
         );

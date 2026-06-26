@@ -7,6 +7,7 @@ namespace nova\plugin\ai\agent;
 use nova\framework\core\Instance;
 use nova\plugin\ai\AiConfig;
 use nova\plugin\ai\mcp\Mcp;
+use nova\plugin\ai\tool\HttpTools;
 use nova\plugin\ai\tool\ToolInterface;
 use nova\plugin\ai\tool\ToolRegistry;
 
@@ -30,7 +31,9 @@ abstract class Agent extends Instance
      */
     protected function tools(): array
     {
-        return [];
+        return [
+            HttpTools::getInstance()->tools()
+        ];
     }
 
     /** 指定提供商显示名；null 表示用当前配置的提供商 */
