@@ -31,9 +31,7 @@ abstract class Agent extends Instance
      */
     protected function tools(): array
     {
-        return [
-            HttpTools::getInstance()->tools()
-        ];
+        return HttpTools::getInstance()->tools();
     }
 
     /** 指定提供商显示名；null 表示用当前配置的提供商 */
