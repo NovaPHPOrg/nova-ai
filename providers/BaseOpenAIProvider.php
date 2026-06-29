@@ -69,6 +69,7 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
             'model'       => $this->getModel(),
             'messages'    => $messages,
             'temperature' => $options['temperature'] ?? 0.7,
+            "reasoning" => [ "enabled" => $options['reasoning'] ?? true ]
         ];
         if (!empty($options['tools'])) {
             $payload['tools'] = $options['tools'];

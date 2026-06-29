@@ -59,7 +59,7 @@ abstract class Agent extends Instance
      * @param  array{onChunk?:callable,onComplete?:callable} $streamOptions
      * @return string|null                                   最终回答文本；无回答返回 null
      */
-    final public function run(string|array $input, array $streamOptions = []): ?string
+    final public function run(string|array $input, array $streamOptions = [], bool $reasoning = true): ?string
     {
         $provider = AiConfig::getInstance()->resolveProvider($this->providerName());
         if ($provider === null) {
@@ -76,7 +76,7 @@ abstract class Agent extends Instance
         }
 
         for ($round = 0; $round < $this->maxIterations(); $round++) {
-            $options = ['temperature' => $this->temperature()];
+            $options = ['temperature' => $this->temperature(),'reasoning' => $reasoning];
             if ($tools !== []) {
                 $options['tools'] = $tools;
             }
