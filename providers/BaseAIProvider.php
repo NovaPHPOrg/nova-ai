@@ -42,9 +42,16 @@ abstract class BaseAIProvider
      * 简单对话入口（向后兼容）：把 system + user 组装成 messages 后委托 chat()。
      * 若 $options 含 onChunk/onComplete 回调，则以流式方式执行并返回 null；否则返回清洗后的完整文本。
      *
-     * @param  string                                        $system
-     * @param  string|array                                  $user
-     * @param  array{onChunk?:callable,onComplete?:callable} $options
+     * @param string       $system
+     * @param string|array $user
+     * @param  array{
+     *     temperature?: float,
+     *     reasoning?: bool,
+     *     tools?: array<int, array<string, mixed>>,
+     *     tool_choice?: string|array<string, mixed>,
+     *     onChunk?: callable(string, string): void,
+     *     onComplete?: callable(): void  流结束后调用（无参；勿与 HttpClient::stream 的三参回调混淆）
+     * }                           $options
      * @return string|null
      */
     public function request(string $system, string|array $user, array $options = []): ?string
@@ -70,15 +77,16 @@ abstract class BaseAIProvider
     /**
      * 底层对话：直接发送 messages，支持工具(tools)与流式回调。
      *
-     * $options:
-     * - tools?: array       OpenAI function-calling 工具定义
-     * - temperature?: float
-     * - onChunk?: callable   function(string $text, string $type): void  ('content'|'thinking')
-     * - onComplete?: callable HttpClient 流式完成回调
-     *
-     * @param  array<int, array<string, mixed>>                                                       $messages
-     * @param  array<string, mixed>                                                                   $options
-     * @return array{content:string, tool_calls:array<int,array<string,mixed>>, finish_reason:string}
+     * @param array<int, array<string, mixed>> $messages
+     * @param  array{
+     *     temperature?: float,
+     *     reasoning?: bool,
+     *     tools?: array<int, array<string, mixed>>,
+     *     tool_choice?: string|array<string, mixed>,
+     *     onChunk?: callable(string, string): void,
+     *     onComplete?: callable(): void
+     * }                                       $options
+     * @return array{content:string, tool_calls:array<int, array<string, mixed>>, finish_reason:string}
      */
     abstract public function chat(array $messages, array $options = []): array;
 

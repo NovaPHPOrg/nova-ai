@@ -57,9 +57,16 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
      * 含 onChunk/onComplete 回调时走流式（SSE 实时解析 content/thinking，并累积 tool_calls）；
      * 否则非流式，一次性解析 message。
      *
-     * @param  array<int, array<string, mixed>>                                                       $messages
-     * @param  array<string, mixed>                                                                   $options
-     * @return array{content:string, tool_calls:array<int,array<string,mixed>>, finish_reason:string}
+     * @param array<int, array<string, mixed>> $messages
+     * @param  array{
+     *     temperature?: float,
+     *     reasoning?: bool,
+     *     tools?: array<int, array<string, mixed>>,
+     *     tool_choice?: string|array<string, mixed>,
+     *     onChunk?: callable(string, string): void,
+     *     onComplete?: callable(): void
+     * }                                       $options
+     * @return array{content:string, tool_calls:array<int, array<string, mixed>>, finish_reason:string}
      */
     public function chat(array $messages, array $options = []): array
     {
