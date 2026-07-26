@@ -52,6 +52,17 @@ abstract class Agent extends Instance
     }
 
     /**
+     * 每轮附加到 system prompt 末尾的工具调用预算提示，让模型知道还剩多少轮并尽量直接完成。
+     * 返回空串则不提示。
+     */
+    protected function budgetHint(int $remaining, int $max): string
+    {
+        return "\n\n[工具调用预算] 本次任务最多可进行 {$max} 轮工具调用，当前还剩 {$remaining} 轮。"
+            . "请用尽量少的调用直接完成任务：先想清楚步骤再动手，避免重复的探索性调用；"
+            . "剩余不多时立即收尾并给出结论，不要因为用尽轮数而没有回复。";
+    }
+
+    /**
      * 执行对话。带 onChunk 回调时流式输出，回调签名 function(string $text, string $type)，
      * type ∈ {content, thinking, tool_call, tool_result}。
      *
@@ -70,12 +81,16 @@ abstract class Agent extends Instance
         $tools = $registry->definitions();
         $onChunk = $streamOptions['onChunk'] ?? null;
 
-        $messages = [['role' => 'system', 'content' => $this->persona()]];
+        $max = $this->maxIterations();
+        $basePersona = $this->persona();
+        $messages = [['role' => 'system', 'content' => $basePersona]];
         foreach ((array)$input as $item) {
             $messages[] = ['role' => 'user', 'content' => $item];
         }
 
-        for ($round = 0; $round < $this->maxIterations(); $round++) {
+        for ($round = 0; $round < $max; $round++) {
+            $messages[0]['content'] = $basePersona . $this->budgetHint($max - $round, $max);
+
             $options = ['temperature' => $this->temperature(),'reasoning' => $reasoning];
             if ($tools !== []) {
                 $options['tools'] = $tools;
