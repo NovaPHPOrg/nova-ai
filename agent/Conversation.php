@@ -86,7 +86,7 @@ final class Conversation
     /**
      * 把早期消息换成一段纪要，保留最近的原文。
      *
-     * @param  array<int, array<string, mixed>>  $messages
+     * @param  array<int, array<string, mixed>> $messages
      * @return array<int, array<string, mixed>>
      */
     private function compress(array $messages): array
