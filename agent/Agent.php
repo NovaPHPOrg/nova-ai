@@ -15,12 +15,21 @@ use nova\plugin\ai\tool\ToolRegistry;
  * Agent 人格父类。
  *
  * 业务继承本类，定义人格(persona)与可用工具(tools)，
- * 调用 run() 即可跑完整的 function-calling 多轮工具调用循环。
+ * 调用 run() 即可跑完整的 function-calling 工具调用循环（单次 run 内的多轮）。
  *
  * 子类至少实现 persona()；其余按需覆盖。
+ *
+ * 跨请求的多轮对话是本类自带的能力，子类不需要写任何代码：
+ *
+ *     (new MyAgent())->withConversation(new Conversation($scope, $cid))->run($prompt);
+ *
+ * 挂了会话就自动接续历史并在收尾时存回；不挂就是一次性任务，行为与从前一致。
  */
 abstract class Agent extends Instance
 {
+    /** 挂上会话即进入多轮模式；为 null 时每次 run() 都是独立的一次性任务 */
+    private ?Conversation $conversation = null;
+
     /** 人格定义，作为 system prompt */
     abstract public function persona(): string;
 
@@ -49,6 +58,19 @@ abstract class Agent extends Instance
     protected function maxIterations(): int
     {
         return 50;
+    }
+
+    /**
+     * 挂上一段会话，run() 就会自动接续它的历史并在收尾时存回去。
+     *
+     * 不挂就是一次性任务，每次 run() 各自独立——一次性 Agent（如 FileSystemAgent）
+     * 不必为此写任何代码，这也是原有行为。
+     */
+    final public function withConversation(Conversation $conversation): static
+    {
+        $this->conversation = $conversation;
+
+        return $this;
     }
 
     /**
@@ -84,6 +106,9 @@ abstract class Agent extends Instance
         $max = $this->maxIterations();
         $basePersona = $this->persona();
         $messages = [['role' => 'system', 'content' => $basePersona]];
+        foreach ($this->conversation?->load() ?? [] as $past) {
+            $messages[] = $past;
+        }
         foreach ((array)$input as $item) {
             $messages[] = ['role' => 'user', 'content' => $item];
         }
@@ -105,7 +130,13 @@ abstract class Agent extends Instance
             $result = $provider->chat($messages, $options);
 
             if ($result['tool_calls'] === []) {
-                return $result['content'] !== '' ? $result['content'] : null;
+                $answer = $result['content'];
+                if ($answer !== '') {
+                    $messages[] = ['role' => 'assistant', 'content' => $answer];
+                }
+                $this->remember($messages);
+
+                return $answer !== '' ? $answer : null;
             }
 
             $messages[] = [
@@ -136,7 +167,24 @@ abstract class Agent extends Instance
             }
         }
 
+        // 轮数耗尽：序列以 tool 响应结尾，是合法的，存下来用户才能追问让它接着干
+        $this->remember($messages);
+
         return null;
+    }
+
+    /**
+     * 存回会话，去掉 system——人格每轮都会重新生成，存下来只会在下次拼出两份。
+     *
+     * 只在正常收尾时调用。工具抛异常的那一刻，最后一条 assistant 的 tool_calls
+     * 往往还没配齐 tool 响应，把这种残缺序列存下去，下一轮加载就会让接口报错。
+     * 宁可丢掉本轮记录，也要让已存的历史始终合法。
+     *
+     * @param array<int, array<string, mixed>> $messages
+     */
+    private function remember(array $messages): void
+    {
+        $this->conversation?->save(array_slice($messages, 1));
     }
 
     private function buildRegistry(): ToolRegistry
