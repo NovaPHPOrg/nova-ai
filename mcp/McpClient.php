@@ -6,6 +6,7 @@ namespace nova\plugin\ai\mcp;
 
 use nova\plugin\http\HttpClient;
 use RuntimeException;
+use stdClass;
 
 /**
  * 单个 MCP server 的客户端（Streamable HTTP / JSON-RPC 2.0）。
@@ -50,7 +51,7 @@ class McpClient
     {
         $result = $this->rpc('tools/call', [
             'name'      => $name,
-            'arguments' => empty($arguments) ? new \stdClass() : $arguments,
+            'arguments' => empty($arguments) ? new stdClass() : $arguments,
         ]);
 
         // HTTP 200 但无 result：server 多半是慢操作超时空收尾（见 decode 的空响应分支）。
@@ -80,7 +81,7 @@ class McpClient
             'method'  => 'initialize',
             'params'  => [
                 'protocolVersion' => self::PROTOCOL_VERSION,
-                'capabilities'    => new \stdClass(),
+                'capabilities' => new stdClass(),
                 'clientInfo'      => ['name' => 'nova-ai', 'version' => '1.0'],
             ],
         ]);
@@ -133,7 +134,7 @@ class McpClient
             'jsonrpc' => '2.0',
             'id'      => $reqId,
             'method'  => $method,
-            'params'  => empty($params) ? new \stdClass() : $params,
+            'params' => empty($params) ? new stdClass() : $params,
         ]);
 
         return $this->decode($resp, $reqId);

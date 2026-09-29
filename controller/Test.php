@@ -7,6 +7,7 @@ namespace nova\plugin\ai\controller;
 use nova\framework\http\Response;
 use nova\plugin\ai\agent\FileSystemAgent;
 use nova\plugin\login\controller\BaseAPIController;
+use Throwable;
 
 class Test extends BaseAPIController
 {
@@ -41,7 +42,7 @@ class Test extends BaseAPIController
                         $send($type, $text);
                     },
                 ]);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $send('error', $e->getMessage());
                 $emitted = true;
             }

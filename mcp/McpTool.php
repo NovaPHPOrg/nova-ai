@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace nova\plugin\ai\mcp;
 
 use nova\plugin\ai\tool\ToolInterface;
+use stdClass;
 
 /**
  * 把一个远程 MCP 工具适配成统一的 ToolInterface。
@@ -31,7 +32,7 @@ class McpTool implements ToolInterface
     {
         $parameters = $this->schema['inputSchema'] ?? null;
         if (!is_array($parameters) || $parameters === []) {
-            $parameters = ['type' => 'object', 'properties' => new \stdClass()];
+            $parameters = ['type' => 'object', 'properties' => new stdClass()];
         }
 
         return [

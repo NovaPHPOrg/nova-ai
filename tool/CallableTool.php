@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace nova\plugin\ai\tool;
 
+use stdClass;
+
 /**
  * 由闭包驱动的本地工具，避免为每个工具单独建类。
  */
@@ -53,10 +55,10 @@ class CallableTool implements ToolInterface
     private function normalizeSchema(array $schema): array
     {
         if ($schema === []) {
-            return ['type' => 'object', 'properties' => new \stdClass()];
+            return ['type' => 'object', 'properties' => new stdClass()];
         }
         if (($schema['properties'] ?? null) === []) {
-            $schema['properties'] = new \stdClass();
+            $schema['properties'] = new stdClass();
         }
         return $schema;
     }

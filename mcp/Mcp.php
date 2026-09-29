@@ -9,6 +9,7 @@ use nova\framework\core\Instance;
 use nova\framework\core\Logger;
 use nova\plugin\ai\McpConfig;
 use nova\plugin\ai\tool\ToolInterface;
+use Throwable;
 
 /**
  * 聚合所有已配置 MCP server 的工具。
@@ -34,7 +35,7 @@ class Mcp extends Instance
                         $tools[] = new McpTool($client, $schema);
                     }
                 }
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 Logger::warning("MCP server unavailable: {$url} - " . $e->getMessage());
             }
         }

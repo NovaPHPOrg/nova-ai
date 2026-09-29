@@ -7,6 +7,7 @@ namespace nova\plugin\ai\task;
 use nova\framework\core\Instance;
 use nova\framework\core\Logger;
 use nova\plugin\ai\agent\Agent;
+use Throwable;
 
 /**
  * AI 任务基类：prompt → Agent function-calling → JSON 提取 → 白名单过滤。
@@ -81,7 +82,7 @@ abstract class AiTask extends Instance
                     }
                 },
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Logger::error('[' . static::class . '] AI 调用异常：' . $e->getMessage());
             return null;
         }

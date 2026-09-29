@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace nova\plugin\ai\tool;
 
+use Throwable;
+
 /**
  * 工具注册表：name => ToolInterface 的映射。
  *
@@ -51,7 +53,7 @@ class ToolRegistry
 
         try {
             return $tool->call($arguments);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return "Error: tool '{$name}' failed: " . $e->getMessage();
         }
     }

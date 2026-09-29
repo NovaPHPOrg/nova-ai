@@ -4,7 +4,13 @@ declare(strict_types=1);
 
 namespace nova\plugin\ai\tool;
 
+use FilesystemIterator;
+use Generator;
 use nova\framework\core\Instance;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use Throwable;
 
 /**
  * 文件系统工具集（带作用范围限制）。
@@ -29,7 +35,7 @@ class FileSystemTools extends Instance
     {
         $real = realpath($root);
         if ($real === false || !is_dir($real)) {
-            throw new \RuntimeException("FileSystemTools root not found: {$root}");
+            throw new RuntimeException("FileSystemTools root not found: {$root}");
         }
         $this->root = str_replace('\\', '/', $real);
     }
@@ -146,11 +152,11 @@ class FileSystemTools extends Instance
     {
         $abs = $this->resolve($this->reqStr($a, 'path'));
         if (!is_file($abs)) {
-            throw new \RuntimeException('not a file: ' . $this->rel($abs));
+            throw new RuntimeException('not a file: ' . $this->rel($abs));
         }
         $content = file_get_contents($abs);
         if ($content === false) {
-            throw new \RuntimeException('read failed: ' . $this->rel($abs));
+            throw new RuntimeException('read failed: ' . $this->rel($abs));
         }
         return $content;
     }
@@ -160,7 +166,7 @@ class FileSystemTools extends Instance
     {
         $paths = $a['paths'] ?? null;
         if (!is_array($paths) || $paths === []) {
-            throw new \RuntimeException('missing argument: paths');
+            throw new RuntimeException('missing argument: paths');
         }
 
         $out = [];
@@ -171,10 +177,10 @@ class FileSystemTools extends Instance
             try {
                 $abs = $this->resolve($p);
                 if (!is_file($abs)) {
-                    throw new \RuntimeException('not a file');
+                    throw new RuntimeException('not a file');
                 }
                 $out[] = "===== {$this->rel($abs)} =====\n" . file_get_contents($abs);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $out[] = "===== {$p} =====\nError: " . $e->getMessage();
             }
         }
@@ -188,7 +194,7 @@ class FileSystemTools extends Instance
         $content = $this->optStr($a, 'content');
         $this->ensureParent($abs);
         if (file_put_contents($abs, $content) === false) {
-            throw new \RuntimeException('write failed: ' . $this->rel($abs));
+            throw new RuntimeException('write failed: ' . $this->rel($abs));
         }
         return 'wrote ' . strlen($content) . ' bytes to ' . $this->rel($abs);
     }
@@ -200,12 +206,12 @@ class FileSystemTools extends Instance
         $old = $this->reqStr($a, 'old_string');
         $new = $this->optStr($a, 'new_string');
         if (!is_file($abs)) {
-            throw new \RuntimeException('not a file: ' . $this->rel($abs));
+            throw new RuntimeException('not a file: ' . $this->rel($abs));
         }
         $content = (string)file_get_contents($abs);
         $count = substr_count($content, $old);
         if ($count === 0) {
-            throw new \RuntimeException('old_string not found in ' . $this->rel($abs));
+            throw new RuntimeException('old_string not found in ' . $this->rel($abs));
         }
         file_put_contents($abs, str_replace($old, $new, $content));
         return "replaced {$count} occurrence(s) in " . $this->rel($abs);
@@ -218,7 +224,7 @@ class FileSystemTools extends Instance
         $content = $this->optStr($a, 'content');
         $this->ensureParent($abs);
         if (file_put_contents($abs, $content, FILE_APPEND) === false) {
-            throw new \RuntimeException('append failed: ' . $this->rel($abs));
+            throw new RuntimeException('append failed: ' . $this->rel($abs));
         }
         return 'appended ' . strlen($content) . ' bytes to ' . $this->rel($abs);
     }
@@ -228,10 +234,10 @@ class FileSystemTools extends Instance
     {
         $abs = $this->resolve($this->reqStr($a, 'path'));
         if (!is_file($abs)) {
-            throw new \RuntimeException('not a file: ' . $this->rel($abs));
+            throw new RuntimeException('not a file: ' . $this->rel($abs));
         }
         if (!unlink($abs)) {
-            throw new \RuntimeException('delete failed: ' . $this->rel($abs));
+            throw new RuntimeException('delete failed: ' . $this->rel($abs));
         }
         return 'deleted ' . $this->rel($abs);
     }
@@ -242,11 +248,11 @@ class FileSystemTools extends Instance
         $src = $this->resolve($this->reqStr($a, 'source'));
         $dst = $this->resolve($this->reqStr($a, 'destination'));
         if (!file_exists($src)) {
-            throw new \RuntimeException('source not found: ' . $this->rel($src));
+            throw new RuntimeException('source not found: ' . $this->rel($src));
         }
         $this->ensureParent($dst);
         if (!rename($src, $dst)) {
-            throw new \RuntimeException('move failed');
+            throw new RuntimeException('move failed');
         }
         return 'moved ' . $this->rel($src) . ' -> ' . $this->rel($dst);
     }
@@ -257,11 +263,11 @@ class FileSystemTools extends Instance
         $src = $this->resolve($this->reqStr($a, 'source'));
         $dst = $this->resolve($this->reqStr($a, 'destination'));
         if (!is_file($src)) {
-            throw new \RuntimeException('source is not a file: ' . $this->rel($src));
+            throw new RuntimeException('source is not a file: ' . $this->rel($src));
         }
         $this->ensureParent($dst);
         if (!copy($src, $dst)) {
-            throw new \RuntimeException('copy failed');
+            throw new RuntimeException('copy failed');
         }
         return 'copied ' . $this->rel($src) . ' -> ' . $this->rel($dst);
     }
@@ -272,14 +278,14 @@ class FileSystemTools extends Instance
         $abs = $this->resolve($this->reqStr($a, 'path'));
         $name = $this->reqStr($a, 'new_name');
         if (str_contains($name, '/') || str_contains($name, '\\')) {
-            throw new \RuntimeException('new_name must be a bare filename without slashes');
+            throw new RuntimeException('new_name must be a bare filename without slashes');
         }
         if (!file_exists($abs)) {
-            throw new \RuntimeException('not found: ' . $this->rel($abs));
+            throw new RuntimeException('not found: ' . $this->rel($abs));
         }
         $dst = dirname($abs) . '/' . $name;
         if (!rename($abs, $dst)) {
-            throw new \RuntimeException('rename failed');
+            throw new RuntimeException('rename failed');
         }
         return 'renamed ' . $this->rel($abs) . ' -> ' . $this->rel($dst);
     }
@@ -289,7 +295,7 @@ class FileSystemTools extends Instance
     {
         $abs = $this->resolve($this->optStr($a, 'path', '.'));
         if (!is_dir($abs)) {
-            throw new \RuntimeException('not a directory: ' . $this->rel($abs));
+            throw new RuntimeException('not a directory: ' . $this->rel($abs));
         }
         $entries = scandir($abs) ?: [];
         $lines = [];
@@ -311,7 +317,7 @@ class FileSystemTools extends Instance
             return 'already exists: ' . $this->rel($abs);
         }
         if (!mkdir($abs, 0777, true) && !is_dir($abs)) {
-            throw new \RuntimeException('create directory failed: ' . $this->rel($abs));
+            throw new RuntimeException('create directory failed: ' . $this->rel($abs));
         }
         return 'created ' . $this->rel($abs);
     }
@@ -359,7 +365,7 @@ class FileSystemTools extends Instance
     {
         $abs = $this->resolve($this->optStr($a, 'path', '.'));
         if (!is_dir($abs)) {
-            throw new \RuntimeException('not a directory: ' . $this->rel($abs));
+            throw new RuntimeException('not a directory: ' . $this->rel($abs));
         }
         $maxDepth = max(1, $this->optInt($a, 'max_depth', 3));
 
@@ -374,7 +380,7 @@ class FileSystemTools extends Instance
     {
         $abs = $this->resolve($this->reqStr($a, 'path'));
         if (!file_exists($abs)) {
-            throw new \RuntimeException('not found: ' . $this->rel($abs));
+            throw new RuntimeException('not found: ' . $this->rel($abs));
         }
         $type = is_dir($abs) ? 'directory' : (is_file($abs) ? 'file' : 'other');
         $info = [
@@ -397,14 +403,14 @@ class FileSystemTools extends Instance
     private function resolve(string $path): string
     {
         if ($path === '') {
-            throw new \RuntimeException('empty path');
+            throw new RuntimeException('empty path');
         }
         $path = str_replace('\\', '/', $path);
         $full = str_starts_with($path, '/') ? $path : $this->root . '/' . $path;
         $norm = $this->normalize($full);
 
         if ($norm !== $this->root && !str_starts_with($norm, $this->root . '/')) {
-            throw new \RuntimeException("path escapes workspace: {$path}");
+            throw new RuntimeException("path escapes workspace: {$path}");
         }
         return $norm;
     }
@@ -437,23 +443,23 @@ class FileSystemTools extends Instance
     {
         $dir = dirname($abs);
         if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
-            throw new \RuntimeException('cannot create directory: ' . $this->rel($dir));
+            throw new RuntimeException('cannot create directory: ' . $this->rel($dir));
         }
     }
 
     /**
      * 递归遍历目录，产出每个条目的绝对路径。
      *
-     * @return \Generator<int, string>
+     * @return Generator<int, string>
      */
-    private function walk(string $base): \Generator
+    private function walk(string $base): Generator
     {
         if (!is_dir($base)) {
             return;
         }
-        $it = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
         );
         foreach ($it as $item) {
             yield str_replace('\\', '/', $item->getPathname());
@@ -504,7 +510,7 @@ class FileSystemTools extends Instance
     {
         $v = $a[$key] ?? null;
         if (!is_string($v) || $v === '') {
-            throw new \RuntimeException("missing argument: {$key}");
+            throw new RuntimeException("missing argument: {$key}");
         }
         return $v;
     }

@@ -8,6 +8,8 @@ use nova\framework\core\Logger;
 use nova\plugin\ai\AiResponseParser;
 use nova\plugin\http\HttpException;
 use nova\plugin\http\HttpResponse;
+use RuntimeException;
+use Throwable;
 
 /**
  * 基于 OpenAI 风格接口的基础提供者
@@ -46,7 +48,7 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
             }
 
             return $models;
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             Logger::error($e->getMessage(), $e->getTrace());
             return [];
         }
@@ -160,7 +162,7 @@ abstract class BaseOpenAIProvider extends BaseAIProvider
                 'tool_calls'    => is_array($message['tool_calls'] ?? null) ? $message['tool_calls'] : [],
                 'finish_reason' => (string)($choice['finish_reason'] ?? ''),
             ];
-        } catch (HttpException|\Throwable $e) {
+        } catch (HttpException|Throwable $e) {
             return $empty;
         }
     }

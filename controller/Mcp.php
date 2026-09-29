@@ -8,6 +8,7 @@ use nova\framework\http\Response;
 use nova\plugin\ai\mcp\McpClient;
 use nova\plugin\ai\McpConfig;
 use nova\plugin\login\controller\BaseAPIController;
+use Throwable;
 
 class Mcp extends BaseAPIController
 {
@@ -41,7 +42,7 @@ class Mcp extends BaseAPIController
                     (new McpClient($url))->listTools()
                 );
                 $data[] = ['url' => $url, 'ok' => true, 'tools' => array_values(array_filter($names))];
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $data[] = ['url' => $url, 'ok' => false, 'error' => $e->getMessage()];
             }
         }

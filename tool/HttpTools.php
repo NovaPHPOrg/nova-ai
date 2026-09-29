@@ -7,6 +7,7 @@ namespace nova\plugin\ai\tool;
 use nova\framework\core\Instance;
 use nova\plugin\http\HttpClient;
 use nova\plugin\http\HttpResponse;
+use RuntimeException;
 
 /**
  * 网络抓取工具（带 SSRF 防护）。
@@ -41,7 +42,7 @@ class HttpTools extends Instance
     {
         $url = $a['url'] ?? null;
         if (!is_string($url) || $url === '') {
-            throw new \RuntimeException('missing argument: url');
+            throw new RuntimeException('missing argument: url');
         }
         $this->guard($url);
 
@@ -85,7 +86,7 @@ class HttpTools extends Instance
         $scheme = strtolower($p['scheme'] ?? '');
         $host = $p['host'] ?? '';
         if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
-            throw new \RuntimeException('only absolute http(s) URLs are allowed');
+            throw new RuntimeException('only absolute http(s) URLs are allowed');
         }
 
         $host = trim($host, '[]'); // 去掉 IPv6 字面量的方括号
@@ -93,7 +94,7 @@ class HttpTools extends Instance
 
         // gethostbyname 解析失败会原样返回主机名 → filter_var 失败 → 拒绝
         if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            throw new \RuntimeException("blocked host (private/loopback/unresolved): {$host}");
+            throw new RuntimeException("blocked host (private/loopback/unresolved): {$host}");
         }
     }
 }

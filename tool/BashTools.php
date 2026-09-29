@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace nova\plugin\ai\tool;
 
 use nova\framework\core\Instance;
+use RuntimeException;
 
 /**
  * Bash 命令工具集。
@@ -31,7 +32,7 @@ class BashTools extends Instance
     {
         $real = realpath($cwd);
         if ($real === false || !is_dir($real)) {
-            throw new \RuntimeException("BashTools cwd not found: {$cwd}");
+            throw new RuntimeException("BashTools cwd not found: {$cwd}");
         }
         $this->cwd = $real;
     }
@@ -70,7 +71,7 @@ class BashTools extends Instance
     {
         $command = $a['command'] ?? null;
         if (!is_string($command) || trim($command) === '') {
-            throw new \RuntimeException('missing argument: command');
+            throw new RuntimeException('missing argument: command');
         }
 
         $timeout = $a['timeout'] ?? self::DEFAULT_TIMEOUT;
@@ -85,7 +86,7 @@ class BashTools extends Instance
 
         $proc = proc_open(['bash', '-c', $command], $descriptors, $pipes, $this->cwd);
         if (!is_resource($proc)) {
-            throw new \RuntimeException('failed to start command');
+            throw new RuntimeException('failed to start command');
         }
 
         fclose($pipes[0]);

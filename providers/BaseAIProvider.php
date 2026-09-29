@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace nova\plugin\ai\providers;
 
+use nova\framework\core\Context;
 use nova\plugin\ai\AiConfig;
 use nova\plugin\http\HttpClient;
 
@@ -25,7 +26,7 @@ abstract class BaseAIProvider
 
     public function __construct()
     {
-        $this->debug = \nova\framework\core\Context::instance()->isDebug();
+        $this->debug = Context::instance()->isDebug();
         $this->http  = HttpClient::init();
     }
 
